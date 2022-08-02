@@ -1,0 +1,88 @@
+<!DOCTYPE html []>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="author" content="MarkdownViewer++" />
+    <title>LMC Docs.md</title>
+    <style type="text/css">
+            
+/* Avoid page breaks inside the most common attributes, especially for exports (i.e. PDF) */
+td, h1, h2, h3, h4, h5, p, ul, ol, li {
+    page-break-inside: avoid; 
+}
+
+        </style>
+  </head>
+  <body>
+    <h1 id="tuptos-little-ape-computer">Tupto's Little Ape Computer</h1>
+    <h2 id="registers">Registers</h2>
+    <ul>
+      <li>A
+<ul><li>General purpose</li></ul></li>
+      <li>B
+<ul><li>General purpose</li></ul></li>
+      <li>C
+<ul><li>General purpose</li></ul></li>
+      <li>D
+<ul><li>General purpose</li></ul></li>
+      <li>Stack Pointer
+<ul><li>Points to current stack location</li></ul></li>
+      <li>Program Counter
+<ul><li>Points to program instruction</li></ul></li>
+      <li>Address Register
+<ul><li>Stores addresses for jumping and returning</li></ul></li>
+      <li>Flags
+<ul><li>Sign (is negative)</li><li>Zero (is zero)</li><li>Carry (if last operation resulted in a carry)</li><li>Interrupt (are interrupts enabled)</li></ul></li>
+    </ul>
+    <h2 id="opcodes">Opcodes</h2>
+    <pre>
+      <code>HLT     0       halt
+ADD     1       add
+SUB     2       subtract
+AND     3       logical AND
+OR      4       logical OR
+XOR     5       logical XOR
+LSL     6       logical shift left
+LSR     7       logical shift right
+MOV     8       move value to register
+LDR     9       load register
+STR     a       store register
+JMP     b       jump
+JS      c       jump if sign bit
+JZ      d       jump if zero bit
+JC      e       jump if carry bit
+RET     f       return
+</code>
+    </pre>
+    <h2 id="opcode-formats">Opcode Formats</h2>
+    <h3 id="indirect">Indirect</h3>
+    <pre>
+      <code>|   15  14  13  12  11  10  9   8   7   6   5   4   3   2   1   0
++------------------------------------------------------------------
+|   [   opcode   ]  0   X   X   X   X   X   [ reg T ]   [ reg S ]
+</code>
+    </pre>
+    <h3 id="immediate">Immediate</h3>
+    <p>Note: Jump opcodes in immediate mode do not use a target register and its value is ignored</p>
+    <pre>
+      <code>|   15  14  13  12  11  10  9   8   7   6   5   4   3   2   1   0
++------------------------------------------------------------------
+|   [   opcode   ]  1   [ reg T ]   [       immediate value       ]
+</code>
+    </pre>
+    <h3 id="mov-immediate">MOV Immediate</h3>
+    <pre>
+      <code>|   15  14  13  12  11  10  9   8   7   6   5   4   3   2   1   0   |   15  14  13  12  11  10  9   8   7   6   5   4   3   2   1   0  
++-------------------------------------------------------------------+------------------------------------------------------------------
+|   [   opcode   ]  1   X   X   X   X   X   X   X   X   [ reg T ]   |   [                      immediate value                        ]
+</code>
+    </pre>
+    <h3 id="misc-hlt-ret">Misc - HLT, RET</h3>
+    <pre>
+      <code>|   15  14  13  12  11  10  9   8   7   6   5   4   3   2   1   0
++--------------------------------------------------------------------
+|   [   opcode   ]  X   X   X   X   X   X   X   X   X   X   X   X
+</code>
+    </pre>
+  </body>
+</html>
