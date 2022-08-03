@@ -37,12 +37,25 @@ public class LittleApeComputer implements Runnable {
     public static final int RAM_ADDRESS = 0x1000;
     public static final int VRAM_ADDRESS = 0xC000;
 
-    public static final int IME = 0x0F00;
-    public static final int IRQ = 0x0F01;
-    public static final int IE = 0x0F02;
-    public static final int IF = 0x0F03;
-    public static final int IH = 0x0F10;
-    public static final int VM = 0x0F20;
+    public static final int IME_ADDRESS = 0x0F00;
+    public static final int IRQ_ADDRESS = 0x0F01;
+    public static final int IE_ADDRESS = 0x0F02;
+    public static final int IF_ADDRESS = 0x0F03;
+    public static final int IH_ADDRESS = 0x0F10;
+    public static final int VM_ADDRESS = 0x0F20;
+
+    public static final int BG0_ADDRESS = 0xC800;
+    public static final int BG1_ADDRESS = 0xD000;
+    public static final int BG2_ADDRESS = 0xD800;
+    public static final int OAM_ADDRESS = 0xF000;
+    public static final int PAL_ADDRESS = 0xF080;
+    public static final int BG_ENABLE_ADDRESS = 0xFFF9;
+    public static final int BG0_X_ADDRESS = 0xFFFA;
+    public static final int BG0_Y_ADDRESS = 0xFFFB;
+    public static final int BG1_X_ADDRESS = 0xFFFC;
+    public static final int BG1_Y_ADDRESS = 0xFFFD;
+    public static final int BG2_X_ADDRESS = 0xFFFE;
+    public static final int BG2_Y_ADDRESS = 0xFFFF;
 
     private short[] bios = new short[0x0F00];
     private short[] ram = new short[0xB000];
@@ -51,7 +64,7 @@ public class LittleApeComputer implements Runnable {
 
     private boolean interruptMasterEnable;
     private boolean interruptRequestMode;
-    private boolean directVideoMode;
+    private short videoMode;
     private short interruptEnableFlags;
     private short interruptRequestFlags;
     private short interruptHandler;
@@ -325,23 +338,23 @@ public class LittleApeComputer implements Runnable {
         }
 
         if (addr < RAM_ADDRESS) {
-            if (addr == IME) {
+            if (addr == IME_ADDRESS) {
                 return (short) (interruptMasterEnable ? 1 : 0);
             }
-            else if (addr == IRQ) {
+            else if (addr == IRQ_ADDRESS) {
                 return (short) (interruptRequestMode ? 1 : 0);
             }
-            else if (addr == IE) {
+            else if (addr == IE_ADDRESS) {
                 return interruptEnableFlags;
             }
-            else if (addr == IF) {
+            else if (addr == IF_ADDRESS) {
                 return interruptRequestFlags;
             }
-            else if (addr == IH) {
+            else if (addr == IH_ADDRESS) {
                 return interruptHandler;
             }
-            else if (addr == VM) {
-                return (short) (directVideoMode ? 1 : 0);
+            else if (addr == VM_ADDRESS) {
+                return videoMode;
             }
             return 0;
         }
@@ -361,23 +374,23 @@ public class LittleApeComputer implements Runnable {
         }
 
         if (addr < RAM_ADDRESS) {
-            if (addr == IME) {
+            if (addr == IME_ADDRESS) {
                 interruptMasterEnable = (val & 1) == 1;
             }
-            else if (addr == IRQ) {
+            else if (addr == IRQ_ADDRESS) {
                 interruptRequestMode = (val & 1) == 1;
             }
-            else if (addr == IE) {
+            else if (addr == IE_ADDRESS) {
                 interruptEnableFlags = val;
             }
-            else if (addr == IF) {
+            else if (addr == IF_ADDRESS) {
                 interruptRequestFlags = val;
             }
-            else if (addr == IH) {
+            else if (addr == IH_ADDRESS) {
                 interruptHandler = val;
             }
-            else if (addr == VM) {
-                directVideoMode = (val & 1) == 1;
+            else if (addr == VM_ADDRESS) {
+                videoMode = (short) ((val & 1) == 1 ? 1 : val & 0x2);
             }
             return;
         }

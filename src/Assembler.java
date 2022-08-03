@@ -8,7 +8,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Assembler {
-    private static final String REGEX_CONSTANT = "ime|irq|ie|if|ih|vm|bios|ic|ram|vram";
+    private static final String REGEX_CONSTANT = "ime|irq|ie|if|ih|vm|bios|ic|ram|vram|bg0|bg1|bg2|oam|pal|bg_enable|bg0_x|bg0_y|bg1_x|bg1_y|bg2_x|bg2_y";
     private static final String REGEX_REGISTER = "a|b|c|d|e|sp|pc";
     private static final String REGEX_DECIMAL_NUMBER = "([+-])?([0-9]+)";
     private static final String REGEX_HEX_BYTE = "([+-])?(x|h|0x)([0-9a-fA-F]{1,2})";
@@ -23,16 +23,28 @@ public class Assembler {
     private static final Pattern PUSH_POP_PATTERN = Pattern.compile(REGEX_PUSH_POP);
 
     private static final HashMap<String, Integer> CONSTANTS = new HashMap<String, Integer>() {{
-        put("ime", LittleApeComputer.IME);
-        put("irq", LittleApeComputer.IRQ);
-        put("ie", LittleApeComputer.IE);
-        put("if", LittleApeComputer.IF);
-        put("ih", LittleApeComputer.IH);
-        put("vm", LittleApeComputer.VM);
+        put("ime", LittleApeComputer.IME_ADDRESS);
+        put("irq", LittleApeComputer.IRQ_ADDRESS);
+        put("ie", LittleApeComputer.IE_ADDRESS);
+        put("if", LittleApeComputer.IF_ADDRESS);
+        put("ih", LittleApeComputer.IH_ADDRESS);
+        put("vm", LittleApeComputer.VM_ADDRESS);
         put("bios", LittleApeComputer.BIOS_ADDRESS);
         put("ic", LittleApeComputer.IC_ADDRESS);
         put("ram", LittleApeComputer.RAM_ADDRESS);
         put("vram", LittleApeComputer.VRAM_ADDRESS);
+        put("bg0", LittleApeComputer.BG0_ADDRESS);
+        put("bg1", LittleApeComputer.BG1_ADDRESS);
+        put("bg2", LittleApeComputer.BG2_ADDRESS);
+        put("oam", LittleApeComputer.OAM_ADDRESS);
+        put("pal", LittleApeComputer.PAL_ADDRESS);
+        put("bg_enable", LittleApeComputer.BG_ENABLE_ADDRESS);
+        put("bg0_x", LittleApeComputer.BG0_X_ADDRESS);
+        put("bg0_y", LittleApeComputer.BG0_Y_ADDRESS);
+        put("bg1_x", LittleApeComputer.BG1_X_ADDRESS);
+        put("bg1_y", LittleApeComputer.BG1_Y_ADDRESS);
+        put("bg2_x", LittleApeComputer.BG2_X_ADDRESS);
+        put("bg3_y", LittleApeComputer.BG2_Y_ADDRESS);
     }};
 
     private static final HashMap<String, Integer> OPCODE_VALS = new HashMap<String, Integer>() {{
@@ -155,6 +167,10 @@ public class Assembler {
                 continue;
             }
 
+            //Comment
+            if (opcode.startsWith(";"))
+                continue;
+
             if (dataMode) {
                 List<String> dataParts = new ArrayList<>(Arrays.asList(instruction.split(",")));
                 for (String data : dataParts) {
@@ -163,10 +179,6 @@ public class Assembler {
                 }
                 continue;
             }
-
-            //Comment
-            if (opcode.startsWith(";"))
-                continue;
 
             //Label
             if (opcode.endsWith(":")) {

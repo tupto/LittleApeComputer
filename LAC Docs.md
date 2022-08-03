@@ -14,12 +14,13 @@ C000-FFFF   VRAM
 ### Map ###
 
 ```
-0F00    IME    Interrupt master enable      (0=off, 1=on)
-0F01    IRQ    Interrupt request mode       (0=off, 1=on)
-0F02    IE     Interrupt enable             (bit flags)
-0F03    IF     Interrupt request flags      (bit flags)
-0F10    IH     Interrupt handler            (function pointer)
-0F20    VM     Video mode                   (0=indexed, 1=direct)
+0F00        IME     Interrupt master enable      (0=off, 1=on)
+0F01        IRQ     Interrupt request mode       (0=off, 1=on)
+0F02        IE      Interrupt enable             (bit flags)
+0F03        IF      Interrupt request flags      (bit flags)
+0F10        IH      Interrupt handler            (function pointer)
+0F20        VM      Video mode                   (see picture processing video modes)
+    
 ```
 
 ### `0F00` - IME - Interrupt master enable ###
@@ -138,7 +139,7 @@ Note: Jump opcodes do not use a target register and its value is ignored
 ```
 |   15  14  13  12  11  10  9   8   7   6   5   4   3   2   1   0
 +------------------------------------------------------------------
-|   [   opcode   ]  0   X   X   X   X   [ reg T ]   X   [ reg S ]
+|   [   opcode   ]  0   -   -   -   -   [ reg T ]   -   [ reg S ]
 ```
 
 ### Immediate byte ###
@@ -156,7 +157,7 @@ Only registers A-D can be target registers for immediate byte values. Immediate 
 ```
 |   15  14  13  12  11  10  9   8   7   6   5   4   3   2   1   0   |   15  14  13  12  11  10  9   8   7   6   5   4   3   2   1   0  
 +-------------------------------------------------------------------+------------------------------------------------------------------
-|   [   opcode   ]  1   1   X   X   X   X   X   X   X   [ reg T ]   |   [                      immediate value                        ]
+|   [   opcode   ]  1   1   -   -   -   -   -   -   -   [ reg T ]   |   [                      immediate value                        ]
 ```
 
 ### Implict ###
@@ -166,7 +167,7 @@ Only registers A-D can be target registers for immediate byte values. Immediate 
 ```
 |   15  14  13  12  11  10  9   8   7   6   5   4   3   2   1   0
 +--------------------------------------------------------------------
-|   [   opcode   ]  X   X   X   X   X   X   X   X   X   X   X   X
+|   [   opcode   ]  -   -   -   -   -   -   -   -   -   -   -   -
 ```
 
 #### PUSH, POP ####
@@ -174,7 +175,7 @@ Only registers A-D can be target registers for immediate byte values. Immediate 
 ```
 |   15  14  13  12  11  10  9   8   7   6   5   4   3   2   1   0
 +--------------------------------------------------------------------
-|   [   opcode   ]  X   X   X   X   X   PC  SP  E   D   C   B   A
+|   [   opcode   ]  -   -   -   -   -   PC  SP  E   D   C   B   A
 ```
 
 ## BIOS ##
@@ -186,4 +187,76 @@ Only registers A-D can be target registers for immediate byte values. Immediate 
 06      Cosine
 08      ArcTan
 0A      ArcTan2
+```
+
+## Picture Processing ##
+
+### Mode 0 - 8bpp Indexed 256x128 ###
+
+### Mode 1 - 16bpp Bitmap 128x128 ###
+
+### Mode 2 - 2bpp Tile/ Sprite mode 256x128 ###
+
+8x8 tiles
+8 words/tile
+
+256 tiles/tilemap
+2048 words/tilemap
+
+4 words/palette
+8 palettes
+
+```
+0xC000-0xC7FF   Tile data
+0xC800-0xCFFF   BG0 attributes  (2*2 screens)
+0xD000-0xD7FF   BG1 attributes  (2*2 screens)
+0xD800-0xEFFF   BG2 attributes  (2*2 screens)
+0xF000-0xF07F   OAM data        (up to 64 sprites)
+0xF080-0xF08F   Palette data    (4*4 16bpp direct colour values (mode 2 only))
+0xF090-0xFFFD   Unused
+0xFFF9          BG enable       (0=none, 1=BG0, 2=BG1, 4=BG2)
+0xFFFA          BG0 X scroll
+0xFFFB          BG0 Y scroll
+0xFFFC          BG1 X scroll
+0xFFFD          BG1 Y scroll
+0xFFFE          BG2 X scroll
+0xFFFF          BG2 Y scroll
+```
+
+#### Tile Attributes ####
+
+```
+|   15  14  13  12  11  10  9   8   7   6   5   4   3   2   1   0
++--------------------------------------------------------------------
+|   fX  fY  -   -   -   [   pal   ] [          tile index          ]
+
+fX  = flip X
+fY  = flip Y
+pal = palette index
+```
+1 word/tileAttr
+
+
+32x16 tileAttr/screen
+2x2 screens
+=2048 words (0x800)
+
+
+
+#### Sprite Attributes ####
+
+```
+|   15  14  13  12  11  10  9   8   7   6   5   4   3   2   1   0
++--------------------------------------------------------------------
+|   c   [       y position       ]  [         x position         ]  
+
+|   15  14  13  12  11  10  9   8   7   6   5   4   3   2   1   0
++--------------------------------------------------------------------
+|   fX  fY  -   -   -   [   pal   ] [          tile index          ]
+
+
+c   = check bit 1=sprite,0=stop
+fX  = flip X
+fY  = flip Y
+pal = palette index
 ```

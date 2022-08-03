@@ -12,6 +12,18 @@ public class ComputerPanel extends JPanel {
     private static final int HEIGHT = 128;
     private static final int SCALE = 2;
 
+    private static final int[] PALETTE_LOCATIONS = new int[] {
+            LittleApeComputer.PAL_ADDRESS,
+            LittleApeComputer.PAL_ADDRESS+4,
+            LittleApeComputer.PAL_ADDRESS+8,
+            LittleApeComputer.PAL_ADDRESS+12,
+            LittleApeComputer.PAL_ADDRESS+16,
+            LittleApeComputer.PAL_ADDRESS+20,
+            LittleApeComputer.PAL_ADDRESS+24,
+            LittleApeComputer.PAL_ADDRESS+28,
+            LittleApeComputer.PAL_ADDRESS+32,
+    };
+
     private static final int REFRESH_TIME = 1000 / 30;
 
     private static final String[] INDEXED_PALETTE = new String[] {
@@ -37,6 +49,9 @@ public class ComputerPanel extends JPanel {
 
     private MemoryImageSource directImageSource;
     private MemoryImageSource indexedImageSource;
+    private MemoryImageSource mode2ImageSource;
+
+    private IndexColorModel mode2ColorModel;
 
     private Image directImage;
     private Image indexedImage;
@@ -73,11 +88,12 @@ public class ComputerPanel extends JPanel {
 
         Container that = this;
         ActionListener screenRefresher = event -> {
+            int what = 0;
             for (int y = 0; y < HEIGHT; y++) {
                 drawLine(y);
             }
 
-            if ((cpu.busRead((short) LittleApeComputer.VM) & 0x1) == 0x1) {
+            if (cpu.busRead((short) LittleApeComputer.VM_ADDRESS) > 0) {
                 directImageSource.newPixels();
             } else {
                 indexedImageSource.newPixels();
@@ -98,10 +114,12 @@ public class ComputerPanel extends JPanel {
 
     public void drawLine(int y) {
         //If direct mode
-        if ((cpu.busRead((short) LittleApeComputer.VM) & 0x1) == 0x1) {
+        if (cpu.busRead((short) LittleApeComputer.VM_ADDRESS) == 0x0) {
+            drawIndexedLine(y);
+        } else if ((cpu.busRead((short) LittleApeComputer.VM_ADDRESS) & 0x1) == 0x1) {
             drawDirectLine(y);
         } else {
-            drawIndexedLine(y);
+            drawMode2Line(y);
         }
     }
 
@@ -127,12 +145,140 @@ public class ComputerPanel extends JPanel {
         }
     }
 
+    private void drawMode2Line(int y) {
+        int bgEnable = cpu.busRead((short) LittleApeComputer.BG_ENABLE_ADDRESS) & 0x7;
+
+        if ((bgEnable & 0x4) > 0) {
+            drawBG(2, y);
+        }
+
+        if ((bgEnable & 0x2) > 0) {
+            drawBG(1, y);
+        }
+
+        drawOAM(y);
+
+        if ((bgEnable & 0x1) > 0) {
+            drawBG(0, y);
+        }
+    }
+
+    private void drawBG(int bg, int y) {
+        int address = LittleApeComputer.BG0_ADDRESS + (0x800*bg)-1;
+        short scrollX = (short) (cpu.busRead((short) (LittleApeComputer.BG0_X_ADDRESS + (2 * bg))) & 0xFF);
+        short scrollY = (short) (cpu.busRead((short) (LittleApeComputer.BG0_Y_ADDRESS + (2 * bg))) & 0x7F);
+
+        for (int bgY = 0; bgY < 32; bgY++) {
+            for (int bgX = 0; bgX < 64; bgX++) {
+                address++;
+
+                int xPos = (bgX * 8 + scrollX) & 0xFFFF;
+                int yPos = (bgY * 8 + scrollY) & 0xFFFF;
+
+                if (y >= yPos && y < yPos+8) {
+                    //short data = cpu.busRead((short) (address + (xPos >> 3) + ((yPos >> 3) * 64) + y));//cpu.busRead((short) address++);
+                    short data = cpu.busRead((short) address);//cpu.busRead((short) address++);
+
+                    boolean flipX = (data & 0x8000) > 0;
+                    boolean flipY = (data & 0x4000) > 0;
+                    int palIndex = (data & 0x0700) >> 8;
+                    int tileIndex = data & 0x00FF;
+
+                    int tileAddr = LittleApeComputer.VRAM_ADDRESS + (tileIndex*8) + (flipY ? 7-y-yPos : y-yPos);
+                    int tileData = cpu.busRead((short) tileAddr);
+
+                    //int tileData = cpu.busRead((short) tileAddr);
+                    //int tileAddr = address + (xPos >> 3) + ((yPos >> 3) * 64);
+
+                    for (int tileX = 0; tileX < 8; tileX++) {
+                        int tileVal = (tileData >> (14 - ((flipX ? 7-tileX : tileX) * 2))) & 0x3;
+                        int palAddr = PALETTE_LOCATIONS[palIndex];
+
+                        short colour = cpu.busRead((short) (palAddr + tileVal));
+                        if ((colour & 0x8000) > 0 || xPos + tileX >= WIDTH)
+                            continue;
+
+                        int pixelInd = (y * WIDTH) + (xPos + tileX);
+                        pixels[pixelInd] = colour;
+                    }
+                }
+            }
+        }
+    }
+//        for (int x = 0; x < WIDTH; x++) {
+//            int xPos = (x + scrollX) & 0xFFFF;
+//            int yPos = (y + scrollY) & 0xFFFF;
+//
+//            short data = cpu.busRead((short) (address + (xPos >> 3) + ((yPos >> 3) * 64) + y));//cpu.busRead((short) address++);
+//
+//            boolean flipX = (data & 0x8000) > 0;
+//            boolean flipY = (data & 0x4000) > 0;
+//            int palIndex = (data & 0x0700) >> 8;
+//            int tileIndex = data & 0x00FF;
+//
+//            int tileAddr = LittleApeComputer.VRAM_ADDRESS + (tileIndex*8) + (flipY ? 7-y : y);
+//            int tileData = cpu.busRead((short) tileAddr);
+//
+//            //int tileData = cpu.busRead((short) tileAddr);
+//            //int tileAddr = address + (xPos >> 3) + ((yPos >> 3) * 64);
+//
+//            for (int tileX = 0; tileX < 8; tileX++) {
+//                int tileVal = (tileData >> (14 - ((flipX ? 7-tileX : tileX) * 2))) & 0x3;
+//                int palAddr = PALETTE_LOCATIONS[palIndex];
+//
+//                short colour = cpu.busRead((short) (palAddr + tileVal));
+//                if ((colour & 0x8000) > 0 || xPos + tileX >= WIDTH)
+//                    continue;
+//
+//                int pixelInd = (y * WIDTH) + (xPos + tileX);
+//                pixels[pixelInd] = colour;
+//            }
+//        }
+//    }
+
+    private void drawOAM(int y) {
+        int address = LittleApeComputer.OAM_ADDRESS;
+        int pos = 0;
+        while (((pos = cpu.busRead((short) address++)) & 0x8000) != 0) {
+            short data = cpu.busRead((short) address++);
+
+            short yPos = (short) ((pos & 0x7F00) >> 8);
+            short xPos = (short) (pos & 0xFF);
+
+            if (y >= yPos && y < yPos+8) {
+                boolean flipX = (data & 0x8000) > 0;
+                boolean flipY = (data & 0x4000) > 0;
+                int palIndex = (data & 0x0700) >> 8;
+                int tileIndex = data & 0x00FF;
+
+                int tileAddr = LittleApeComputer.VRAM_ADDRESS + (tileIndex*8) + (flipY ? 7-y-yPos : y-yPos);
+                int tileData = cpu.busRead((short) tileAddr);
+
+                for (int spriteX = 0; spriteX < 8; spriteX++) {
+                    int tileVal = (tileData >> (14 - ((flipX ? 7-spriteX : spriteX) * 2))) & 0x3;
+                    int palAddr = PALETTE_LOCATIONS[palIndex];
+
+                    short colour = cpu.busRead((short) (palAddr + tileVal));
+                    if ((colour & 0x8000) > 0)
+                        continue;
+
+                    int pixelInd = (y * WIDTH) + xPos + spriteX;
+                    pixels[pixelInd] = colour;
+                }
+            }
+        }
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
-        if ((cpu.busRead((short) LittleApeComputer.VM) & 0x1) == 0x1) {
+        if (cpu.busRead((short) LittleApeComputer.VM_ADDRESS) == 0x0) {
+            g.drawImage(indexedImage, 0, 0, WIDTH * SCALE, HEIGHT * SCALE, null);
+        } else if (cpu.busRead((short) LittleApeComputer.VM_ADDRESS) == 0x1) {
             g.drawImage(directImage, 0, 0, WIDTH * SCALE, HEIGHT * SCALE, null);
         } else {
-            g.drawImage(indexedImage, 0, 0, WIDTH * SCALE, HEIGHT * SCALE, null);
+            g.setColor(Color.magenta);
+            g.drawRect(0, 0, WIDTH * SCALE, HEIGHT * SCALE);
+            g.drawImage(directImage, 0, 0, WIDTH * SCALE, HEIGHT * SCALE, null);
         }
     }
 }
