@@ -6,7 +6,7 @@ mov a IH
 mov b interrupt_handler
 str a b         ; IH = interrupt_handler
 sub a xE        ; IH - xF = IE
-str a x1        ; IE = VBLANK
+str a x1        ; IE = VBLANK | HBLANK
 sub a x2        ; IE - x2 = IME
 str a x1        ; IME enabled
 
@@ -17,7 +17,7 @@ bl 0x0004           ; bios mem_cpy function
 
 mov a tiles
 mov b VRAM
-mov c 0x38
+mov c 0x40
 bl 0x0004           ; bios mem_cpy function
 
 mov a wizard_sprites
@@ -25,41 +25,33 @@ mov b OAM
 mov c 36
 bl 0x0004           ; bios mem_cpy function
 
+mov a BG1_X
+str a xA
+
 mov a BG1
-mov b 32
-mov c 16
+mov b x800
+mov c x123
 mov d 0x0606
 
-check_x:
+write_bg1:
     sub b x1
-    bs reset_x
-    b store
-
-reset_x:
-    mov b 32
-    add a 31
+    bs loop
     
-check_y:
-    sub c x1
-    bs loop_start
-
-store:
+    mov d 0x0607
+    
+    add c 0x1D79
+    xor c b
+    mov e c
+    sub e 0x2000
+    bs +1
+    sub d x1
+    
     str a d
     add a x1
-    b check_x
+    b write_bg1
 
-loop_start:
-    mov a BG1_X
 loop:
     bl vblank_wait  ; wait for vblank
-    ldr b a
-    add b x1
-    ;str a b
-    add a x1
-    ldr b a
-    add b x1
-    ;str a b
-    sub a x1
     b loop
 
 interrupt_handler:
@@ -67,6 +59,17 @@ interrupt_handler:
     
     mov a vblank_wait_flag
     str a x1        ; set vblank_wait_flag
+    
+    
+    mov a BG1_X
+    ldr b a
+    add b x1
+    str a b
+    add a x1
+    ldr b a
+    add b x1
+    str a b
+    sub a x1
     
     pop a
     ret
@@ -95,8 +98,8 @@ palettes:
 0x8000,0x0000,0x7C00,0x4921
 0x8000,0x0000,0x7C1F,0x4921
 
-;grass
-0x1DEA,0x36CE,0x36D4,0x266D
+;space
+0x0x0000,0x18D0,0x4004,0x266D
 .enddata
 
 tiles:
@@ -109,8 +112,9 @@ tiles:
 0xFFFF,0x3C0F,0x8053,0xA000,0xA80A,0xAAAA,0x5A96,0xA6A9
 0x40F0,0x90F0,0xA5F0,0xAAF0,0xA9F0,0xA4F0,0xA4F0,0x95F0
 
-;grass
+; space
 0x0000,0x0408,0x1000,0x0000,0x0803,0x0233,0x000C,0x0000
+0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000
 .enddata
 
 wizard_sprites:

@@ -2,7 +2,6 @@ import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.*;
-import javax.swing.text.html.HTMLDocument;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
@@ -19,7 +18,7 @@ public class DebuggerFrame extends JFrame implements ActionListener, CPUWatcher 
     JMenuItem pauseUnpauseMi;
     JMenuItem stepMi;
     JScrollPane asmPane;
-    ComputerPanel computerPanel;
+    GfxPanel computerPanel;
 
     final LittleApeComputer cpu;
     Thread cpuThread;
@@ -263,7 +262,7 @@ public class DebuggerFrame extends JFrame implements ActionListener, CPUWatcher 
         menuBar.add(debugMenu);
 
         cpu = new LittleApeComputer(this);
-        computerPanel = new ComputerPanel(cpu);
+        computerPanel = new GfxPanel(cpu);
 
         this.setJMenuBar(menuBar);
 
@@ -476,5 +475,18 @@ public class DebuggerFrame extends JFrame implements ActionListener, CPUWatcher 
         if (breakpoints.contains(cpu.getRegister(LittleApeComputer.PC))) {
             actionPerformed(new ActionEvent(this, 0, "Pause"));
         }
+    }
+
+    @Override
+    public void OnRefresh(LittleApeComputer cpu) {
+        computerPanel.drawLine(0);
+    }
+
+    public void OnHBLANK(LittleApeComputer cpu, int line) {
+        computerPanel.drawLine(line+1);
+    }
+
+    @Override
+    public void OnVBLANK(LittleApeComputer cpu) {
     }
 }

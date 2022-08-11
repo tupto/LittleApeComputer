@@ -5,7 +5,7 @@ import java.awt.image.DirectColorModel;
 import java.awt.image.IndexColorModel;
 import java.awt.image.MemoryImageSource;
 
-public class ComputerPanel extends JPanel {
+public class GfxPanel extends JPanel {
     LittleApeComputer cpu;
 
     private static final int WIDTH = 256;
@@ -53,7 +53,7 @@ public class ComputerPanel extends JPanel {
     private Image directImage;
     private Image indexedImage;
 
-    public ComputerPanel(LittleApeComputer cpu) {
+    public GfxPanel(LittleApeComputer cpu) {
         Color[] palette = new Color[256];
 
         for (int i = 0; i < 256; i++) {
@@ -146,56 +146,57 @@ public class ComputerPanel extends JPanel {
         int bgEnable = cpu.busRead((short) LittleApeComputer.BG_ENABLE_ADDRESS) & 0x7;
 
         if ((bgEnable & 0x4) > 0) {
-            drawBG(2, y);
+            drawBackgroundLine(2, y);
         }
 
         if ((bgEnable & 0x2) > 0) {
-            drawBG(1, y);
+            drawBackgroundLine(1, y);
         }
 
         drawOAM(y);
 
         if ((bgEnable & 0x1) > 0) {
-            drawBG(0, y);
+            drawBackgroundLine(0, y);
         }
     }
 
-    private void drawBG(int bg, int y) {
-        int address = LittleApeComputer.BG0_ADDRESS + (0x800*bg)-1;
-        short scrollX = (short) (cpu.busRead((short) (LittleApeComputer.BG0_X_ADDRESS + (2 * bg))) & 0xFF);
-        short scrollY = (short) (cpu.busRead((short) (LittleApeComputer.BG0_Y_ADDRESS + (2 * bg))) & 0x7F);
+    private void drawBackgroundLine(int bg, int y) {
+        int bgAddress = LittleApeComputer.BG0_ADDRESS + (0x800*bg);
+        int scrollX = cpu.busRead((short) (LittleApeComputer.BG0_X_ADDRESS + (2 * bg))) % 0xFF;
+        int scrollY = cpu.busRead((short) (LittleApeComputer.BG0_Y_ADDRESS + (2 * bg))) % 0x7F;
 
-        for (int bgY = 0; bgY < 32; bgY++) {
-            for (int bgX = 0; bgX < 64; bgX++) {
-                address++;
+        int tileY = ((y + scrollY) / 8) % 32;
+        for (int x = 0; x < WIDTH; x++) {
+            int tileX = ((x + scrollX) / 8) % 64;
 
-                int xPos = (bgX * 8 + scrollX) & 0xFFFF;
-                int yPos = (bgY * 8 + scrollY) & 0xFFFF;
+            int tileAttrAddress = bgAddress + (tileY * 64) + tileX;
+            short data = cpu.busRead((short) tileAttrAddress);
 
-                if (y >= yPos && y < yPos+8) {
-                    short data = cpu.busRead((short) address);
+            boolean flipX = (data & 0x8000) > 0;
+            boolean flipY = (data & 0x4000) > 0;
+            int palIndex = (data & 0x0700) >> 8;
+            int tileIndex = data & 0x00FF;
 
-                    boolean flipX = (data & 0x8000) > 0;
-                    boolean flipY = (data & 0x4000) > 0;
-                    int palIndex = (data & 0x0700) >> 8;
-                    int tileIndex = data & 0x00FF;
+            int yPos = ((y - scrollY + 128) % 8);
+            yPos = flipY ? 7-yPos : yPos;
 
-                    int tileAddr = LittleApeComputer.VRAM_ADDRESS + (tileIndex*8) + (flipY ? 7-y-yPos : y-yPos);
-                    int tileData = cpu.busRead((short) tileAddr);
+            int tileAddr = LittleApeComputer.VRAM_ADDRESS + (tileIndex*8) + yPos;
+            int tileData = cpu.busRead((short) tileAddr);
 
-                    for (int tileX = 0; tileX < 8; tileX++) {
-                        int tileVal = (tileData >> (14 - ((flipX ? 7-tileX : tileX) * 2))) & 0x3;
-                        int palAddr = PALETTE_LOCATIONS[palIndex];
+            int palAddr = PALETTE_LOCATIONS[palIndex];
 
-                        short colour = cpu.busRead((short) (palAddr + tileVal));
-                        if ((colour & 0x8000) > 0 || xPos + tileX >= WIDTH)
-                            continue;
+            int xPos = ((x - scrollX + 256) % 8);
+            xPos = flipX ? 7-xPos : xPos;
 
-                        int pixelInd = (y * WIDTH) + (xPos + tileX);
-                        pixels[pixelInd] = colour;
-                    }
-                }
-            }
+            int tileVal = (tileData >> (14 - xPos*2)) & 0x3;
+
+            short colour = cpu.busRead((short) (palAddr + tileVal));
+
+            if ((colour & 0x8000) > 0)
+                continue;
+
+            int pixelInd = (y * WIDTH) + (x);
+            pixels[pixelInd] = colour;
         }
     }
 

@@ -183,10 +183,13 @@ Only registers A-D can be target registers for immediate byte values. Immediate 
 ```
 00      Soft reset
 02      Interrupt vector
-04      Sine
-06      Cosine
-08      ArcTan
-0A      ArcTan2
+04      Memory copy
+06      Divide
+08      Modulo
+0A      Sine
+0C      Cosine
+0E      ArcTan
+10      ArcTan2
 ```
 
 ## Picture Processing ##

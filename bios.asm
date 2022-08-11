@@ -7,6 +7,8 @@
 b soft_reset
 b interrupt_vector
 b mem_cpy
+b divide
+b modulo
 b sine
 b cosine
 b arctan
@@ -36,7 +38,7 @@ interrupt_vector:
 
 ;a = src, b = dest, c = len
 mem_cpy:
-    push d
+    push a-d
     add a c
     add b c
     mem_cpy_loop:
@@ -48,9 +50,16 @@ mem_cpy:
         str b d
         b mem_cpy_loop
         mem_cpy_end:
-            pop d
+            pop a-d
             ret
 
+divide:
+    push b-e
+    push 
+    pop c-e
+    ret
+modulo:
+    ret
 sine:
     ret
 cosine:

@@ -1,3 +1,5 @@
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class LittleApeComputer implements Runnable {
@@ -57,6 +59,13 @@ public class LittleApeComputer implements Runnable {
     public static final int BG2_X_ADDRESS = 0xFFFE;
     public static final int BG2_Y_ADDRESS = 0xFFFF;
 
+    public static final int HBLANK_CYCLES = 64 * 4;
+    public static final int HDRAW_CYCLES = 256 * 4;
+    public static final int LINE_CYCLES = HDRAW_CYCLES + HBLANK_CYCLES;
+    public static final int VDRAW_CYCLES = 128 * LINE_CYCLES;
+    public static final int VBLANK_CYCLES = 64 * LINE_CYCLES;
+    public static final int REFRESH_CYCLES = VDRAW_CYCLES + VBLANK_CYCLES;
+
     private short[] bios = new short[0x0F00];
     private short[] ram = new short[0xB000];
     private short[] vram = new short[0x4000];
@@ -76,6 +85,8 @@ public class LittleApeComputer implements Runnable {
     private boolean paused;
     private boolean halted = true;
     private boolean step;
+
+    private int cycleCount;
 
     public boolean getPaused() {
         return this.paused;
@@ -107,11 +118,18 @@ public class LittleApeComputer implements Runnable {
         return registers[register];
     }
 
-    CPUWatcher watcher;
-    public LittleApeComputer() { }
+    List<CPUWatcher> watchers;
+
+    public LittleApeComputer() {
+        this.watchers = new ArrayList<>();
+    }
 
     public LittleApeComputer(CPUWatcher watcher) {
-        this.watcher = watcher;
+        this.watchers = Arrays.asList(watcher);
+    }
+
+    public void addWatcher(CPUWatcher watcher) {
+        this.watchers.add(watcher);
     }
 
     public void reset(List<Short> bios, List<Short> program) {
@@ -130,6 +148,8 @@ public class LittleApeComputer implements Runnable {
         halted = false;
         paused = false;
 
+        cycleCount = 0;
+
         registers[SP] = (short) 0xBFFF;
         registers[PC] = (short) 0x1000;
 
@@ -143,8 +163,6 @@ public class LittleApeComputer implements Runnable {
     }
 
     public void run() {
-        System.out.println("started running");
-        //paused = true;
         while (!halted) {
             if (!paused) {
                 doStep();
@@ -158,11 +176,43 @@ public class LittleApeComputer implements Runnable {
                 }
             }
         }
-        System.out.println("stopped running..?");
     }
 
     public void doStep() {
-        //System.out.println("step");
+        int lineCycleCount = cycleCount % LINE_CYCLES;
+
+        if (cycleCount == VDRAW_CYCLES) {
+            //Entered VBLANK
+            generateInterrupt((short) 0x1);
+            for (CPUWatcher watcher : watchers)
+                if (watcher != null)
+                    watcher.OnVBLANK(this);
+        } else if (lineCycleCount == HDRAW_CYCLES) {
+            //Entered HBLANK
+            generateInterrupt((short) 0x2);
+
+            for (CPUWatcher watcher : watchers)
+                if (watcher != null)
+                    watcher.OnHBLANK(this, cycleCount / LINE_CYCLES);
+        }
+
+        //Reached end of a screen refresh cycle.
+        if (cycleCount == REFRESH_CYCLES) {
+            cycleCount = 0;
+
+            for (CPUWatcher watcher : watchers)
+                if (watcher != null)
+                    watcher.OnRefresh(this);
+
+            synchronized (this) {
+                try {
+                    wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
         // If interrupts are enabled and an interrupt request was made
         if (interruptMasterEnable && !interruptRequestMode && (interruptEnableFlags & interruptRequestFlags) > 0) {
             beginInterrupt();
@@ -178,7 +228,7 @@ public class LittleApeComputer implements Runnable {
         boolean immediateWord = (instruction & 0x0400) == 0x0400;
 
         short sourceRegister = (short) (instruction & 0x0007);
-        short targetRegister;// = immediateMode ? (short) ((instruction & 0x0700) >> 8) : (short) ((instruction & 0x0038) >> 3);
+        short targetRegister;
         short value = 0;
 
         if (immediateMode) {
@@ -313,8 +363,12 @@ public class LittleApeComputer implements Runnable {
         setZero(registers[targetRegister] == 0);
         setSign((registers[targetRegister] & 0x8000) == 0x8000);
 
-        if (watcher != null)
-            watcher.OnStep(this);
+        cycleCount++;
+
+
+        for (CPUWatcher watcher : watchers)
+            if (watcher != null)
+                watcher.OnStep(this);
     }
 
     public void generateInterrupt(short interrupt) {
