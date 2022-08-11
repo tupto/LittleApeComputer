@@ -49,9 +49,6 @@ public class ComputerPanel extends JPanel {
 
     private MemoryImageSource directImageSource;
     private MemoryImageSource indexedImageSource;
-    private MemoryImageSource mode2ImageSource;
-
-    private IndexColorModel mode2ColorModel;
 
     private Image directImage;
     private Image indexedImage;
@@ -88,11 +85,6 @@ public class ComputerPanel extends JPanel {
 
         Container that = this;
         ActionListener screenRefresher = event -> {
-            int what = 0;
-            for (int y = 0; y < HEIGHT; y++) {
-                drawLine(y);
-            }
-
             if (cpu.busRead((short) LittleApeComputer.VM_ADDRESS) > 0) {
                 directImageSource.newPixels();
             } else {
@@ -104,8 +96,10 @@ public class ComputerPanel extends JPanel {
 
             Toolkit.getDefaultToolkit().sync();
 
-            if (!cpu.getPaused())
-                cpu.generateInterrupt((short) 0x1); // Generate VBLANK interrupt
+            synchronized (cpu) {
+                if (!cpu.getPaused())
+                    cpu.notify();
+            }
         };
 
         Timer refreshTimer = new Timer(REFRESH_TIME, screenRefresher);
@@ -113,7 +107,10 @@ public class ComputerPanel extends JPanel {
     }
 
     public void drawLine(int y) {
-        //If direct mode
+        if (y >= HEIGHT)
+            return;
+
+        //If indexed mode
         if (cpu.busRead((short) LittleApeComputer.VM_ADDRESS) == 0x0) {
             drawIndexedLine(y);
         } else if ((cpu.busRead((short) LittleApeComputer.VM_ADDRESS) & 0x1) == 0x1) {
@@ -176,8 +173,7 @@ public class ComputerPanel extends JPanel {
                 int yPos = (bgY * 8 + scrollY) & 0xFFFF;
 
                 if (y >= yPos && y < yPos+8) {
-                    //short data = cpu.busRead((short) (address + (xPos >> 3) + ((yPos >> 3) * 64) + y));//cpu.busRead((short) address++);
-                    short data = cpu.busRead((short) address);//cpu.busRead((short) address++);
+                    short data = cpu.busRead((short) address);
 
                     boolean flipX = (data & 0x8000) > 0;
                     boolean flipY = (data & 0x4000) > 0;
@@ -186,9 +182,6 @@ public class ComputerPanel extends JPanel {
 
                     int tileAddr = LittleApeComputer.VRAM_ADDRESS + (tileIndex*8) + (flipY ? 7-y-yPos : y-yPos);
                     int tileData = cpu.busRead((short) tileAddr);
-
-                    //int tileData = cpu.busRead((short) tileAddr);
-                    //int tileAddr = address + (xPos >> 3) + ((yPos >> 3) * 64);
 
                     for (int tileX = 0; tileX < 8; tileX++) {
                         int tileVal = (tileData >> (14 - ((flipX ? 7-tileX : tileX) * 2))) & 0x3;
@@ -205,36 +198,6 @@ public class ComputerPanel extends JPanel {
             }
         }
     }
-//        for (int x = 0; x < WIDTH; x++) {
-//            int xPos = (x + scrollX) & 0xFFFF;
-//            int yPos = (y + scrollY) & 0xFFFF;
-//
-//            short data = cpu.busRead((short) (address + (xPos >> 3) + ((yPos >> 3) * 64) + y));//cpu.busRead((short) address++);
-//
-//            boolean flipX = (data & 0x8000) > 0;
-//            boolean flipY = (data & 0x4000) > 0;
-//            int palIndex = (data & 0x0700) >> 8;
-//            int tileIndex = data & 0x00FF;
-//
-//            int tileAddr = LittleApeComputer.VRAM_ADDRESS + (tileIndex*8) + (flipY ? 7-y : y);
-//            int tileData = cpu.busRead((short) tileAddr);
-//
-//            //int tileData = cpu.busRead((short) tileAddr);
-//            //int tileAddr = address + (xPos >> 3) + ((yPos >> 3) * 64);
-//
-//            for (int tileX = 0; tileX < 8; tileX++) {
-//                int tileVal = (tileData >> (14 - ((flipX ? 7-tileX : tileX) * 2))) & 0x3;
-//                int palAddr = PALETTE_LOCATIONS[palIndex];
-//
-//                short colour = cpu.busRead((short) (palAddr + tileVal));
-//                if ((colour & 0x8000) > 0 || xPos + tileX >= WIDTH)
-//                    continue;
-//
-//                int pixelInd = (y * WIDTH) + (xPos + tileX);
-//                pixels[pixelInd] = colour;
-//            }
-//        }
-//    }
 
     private void drawOAM(int y) {
         int address = LittleApeComputer.OAM_ADDRESS;

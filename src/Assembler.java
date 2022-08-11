@@ -394,7 +394,7 @@ public class Assembler {
         if (text.endsWith("z")) {
             return LittleApeComputer.BRANCH_ZERO;
         }
-        if (text.endsWith("C")) {
+        if (text.endsWith("c")) {
             return LittleApeComputer.BRANCH_CARRY;
         }
         return LittleApeComputer.BRANCH;
