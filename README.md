@@ -1,5 +1,7 @@
 # Tupto's Little Ape Computer #
 
+Made for Essex CSEE Society Summer Challenge. Very unpolished, may come back to this project at some point and fix some things, especially with regard to the GUI. 
+
 ## Memory Map ##
 
 ```
